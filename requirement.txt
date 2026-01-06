@@ -1,0 +1,7 @@
+streamlit
+tensorflow-cpu==2.13.0
+numpy
+pillow
+rembg
+gtts
+onnxruntime
