@@ -12,7 +12,6 @@ import traceback
 # ---------------- CONFIG ----------------
 MODEL_PATH = "Mobile_98.keras"
 CLASS_LABELS_PATH = "class_labels.json"
-PLACEHOLDER_IMAGE = "not_sign.png"  # safer relative path
 # ----------------------------------------
 
 st.set_page_config(page_title="Tamil ↔ Malayalam Sign Recognition", layout="wide")
@@ -22,23 +21,25 @@ st.set_page_config(page_title="Tamil ↔ Malayalam Sign Recognition", layout="wi
 def load_assets():
     model = load_model(MODEL_PATH)
 
+    # 🔥 Automatically detect model input size
+    input_height = model.input_shape[1]
+    input_width = model.input_shape[2]
+
     with open(CLASS_LABELS_PATH, "r", encoding="utf-8") as f:
         labels = json.load(f)
 
-    # If labels saved as list -> convert to index dictionary
+    # Handle both list or dict JSON formats
     if isinstance(labels, list):
         labels = {i: v.strip() for i, v in enumerate(labels)}
     else:
         labels = {int(k): v.strip() for k, v in labels.items()}
 
-    return model, labels
+    return model, labels, input_height, input_width
 
-model, class_labels = load_assets()
+
+model, class_labels, IMG_H, IMG_W = load_assets()
 
 # ---------------- UTILS ----------------
-def normalize_label(label):
-    return re.sub(r'\s+', ' ', label.strip().lower())
-
 def composite_on_black(pil_img):
     if pil_img.mode in ("RGBA", "LA"):
         bg = Image.new("RGB", pil_img.size, (0, 0, 0))
@@ -47,8 +48,8 @@ def composite_on_black(pil_img):
     return pil_img.convert("RGB")
 
 def preprocess_for_model(img):
-    # 🔥 IMPORTANT: Must match training size (MobileNetV2 = 224x224)
-    img = img.resize((224, 224))
+    # ✅ Automatically uses correct model size
+    img = img.resize((IMG_W, IMG_H))
     arr = np.array(img).astype("float32") / 255.0
     return np.expand_dims(arr, axis=0)
 
@@ -92,9 +93,10 @@ if uploaded_file:
 
             st.subheader("🔊 Pronunciation")
             st.audio(audio_path)
+
         except:
             st.warning("Voice generation failed.")
 
-    except Exception as e:
+    except Exception:
         st.error("❌ An error occurred during processing")
         st.text(traceback.format_exc())
